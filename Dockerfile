@@ -1,40 +1,54 @@
+# Centos based container with Java and Tomcat
 FROM centos:7.4.1708
-RUN yum update -y
+MAINTAINER fintecheando
 
-RUN yum install -y wget
-RUN wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/8u161-b12/2f38c3b165be4555a1fa6e98c45e0808/jdk-8u161-linux-x64.rpm"
+# Install prepare infrastructure
+RUN yum -y update && \
+ yum -y install wget && \
+ yum -y install tar
 
-# Install Oracle JDK
-RUN rpm -ivh jdk-8u161-linux-x64.rpm
+# Prepare environment 
+ENV JAVA_HOME /opt/java
+ENV CATALINA_HOME /opt/tomcat 
+ENV PATH $PATH:$JAVA_HOME/bin:$CATALINA_HOME/bin:$CATALINA_HOME/scripts
 
-# Here comes the Tomcat installation
-RUN groupadd tomcat
-RUN useradd -M -s /bin/nologin -g tomcat -d /opt/tomcat tomcat
-RUN wget http://www-eu.apache.org/dist/tomcat/tomcat-8/v8.5.28/bin/apache-tomcat-8.5.28.tar.gz
-RUN mkdir /opt/tomcat
-RUN tar xvf apache-tomcat-8.5.28.tar.gz -C /opt/tomcat --strip-components=1
-RUN cd /opt/tomcat
-RUN chgrp -R tomcat /opt/tomcat
-RUN chmod -R g+r /opt/tomcat/conf
-RUN chmod g+x /opt/tomcat/conf
-RUN chown -R tomcat /opt/tomcat/webapps/ /opt/tomcat/work/ /opt/tomcat/temp/ /opt/tomcat/logs/
+# Install Oracle Java8
+ENV JAVA_VERSION 8u162
+ENV JAVA_BUILD 8u162-b12
+ENV JAVA_DL_HASH 0da788060d494f5095bf8624735fa2f1 
 
-#Create a tomcat service
-#COPY  tomcat.service /etc/systemd/system/tomcat.service
+RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
+ http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.tar.gz && \
+ tar -xvf jdk-${JAVA_VERSION}-linux-x64.tar.gz && \
+ rm jdk*.tar.gz && \
+ mv jdk* ${JAVA_HOME}
 
 
-#Now, start the Apache Tomcat service and set it run on system boot:
-#RUN systemctl start tomcat.service
-#RUN systemctl enable tomcat.service
+# Install Tomcat
+ENV TOMCAT_MAJOR 8
+ENV TOMCAT_VERSION 8.5.28
 
-#In order to test Apache Tomcat in a web browser, you need to modify the firewall rules:
-#RUN firewall-cmd --zone=public --permanent --add-port=8080/tcp
-#RUN firewall-cmd --reload
+RUN wget http://mirror.linux-ia64.org/apache/tomcat/tomcat-${TOMCAT_MAJOR}/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz && \
+ tar -xvf apache-tomcat-${TOMCAT_VERSION}.tar.gz && \
+ rm apache-tomcat*.tar.gz && \
+ mv apache-tomcat* ${CATALINA_HOME}
 
-# Expose the default tomcat port
+RUN chmod +x ${CATALINA_HOME}/bin/*sh
+
+# Create Tomcat admin user
+ADD create_admin_user.sh $CATALINA_HOME/scripts/create_admin_user.sh
+ADD tomcat.sh $CATALINA_HOME/scripts/tomcat.sh
+RUN chmod +x $CATALINA_HOME/scripts/*.sh
+
+# Create tomcat user
+RUN groupadd -r tomcat && \
+ useradd -g tomcat -d ${CATALINA_HOME} -s /sbin/nologin  -c "Tomcat user" tomcat && \
+ chown -R tomcat:tomcat ${CATALINA_HOME}
+
+WORKDIR /opt/tomcat
+
 EXPOSE 8080
+EXPOSE 8009
 
-# Start the tomcat (and leave it hanging)
-RUN /opt/tomcat/bin/catalina.sh start
-
-
+USER tomcat
+CMD ["tomcat.sh"]
