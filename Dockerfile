@@ -20,13 +20,21 @@ RUN chmod g+x /opt/tomcat/conf
 RUN chown -R tomcat /opt/tomcat/webapps/ /opt/tomcat/work/ /opt/tomcat/temp/ /opt/tomcat/logs/
 
 #Create a tomcat service
-#RUN vi /etc/systemd/system/tomcat.service
+#COPY  tomcat.service /etc/systemd/system/tomcat.service
 
-#RUN echo "JAVA_HOME=/usr/lib/jvm/java-7-oracle" >> /etc/default/tomcat7
+
+#Now, start the Apache Tomcat service and set it run on system boot:
+#RUN systemctl start tomcat.service
+#RUN systemctl enable tomcat.service
+
+#In order to test Apache Tomcat in a web browser, you need to modify the firewall rules:
+#RUN firewall-cmd --zone=public --permanent --add-port=8080/tcp
+#RUN firewall-cmd --reload
 
 # Expose the default tomcat port
-#EXPOSE 8080
+EXPOSE 8080
 
 # Start the tomcat (and leave it hanging)
-#CMD service tomcat7 start && tail -f /var/lib/tomcat7/logs/catalina.out
+RUN /opt/tomcat/bin/catalina.sh start
+
 
