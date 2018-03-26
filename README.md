@@ -1,4 +1,4 @@
-# mifos-docker
+# fincore-docker
 FinCORE - Docker
 
 1. Build the image
